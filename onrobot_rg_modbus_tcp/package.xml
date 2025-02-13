@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>onrobot_rg_modbus_tcp</name>
+  <version>1.0.0</version>
+  <description>A stack to communicate with OnRobot RG grippers using the Modbus/TCP protocol. Based on Takuya Kiyokawa's package.</description>
+  <maintainer email="andras.makany@irob.uni-obuda.hu">Makány András</maintainer>
+  <author email="andras.makany@irob.uni-obuda.hu">Makány András</author>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

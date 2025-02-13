@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>onrobot_rg_control</name>
+  <version>1.0.0</version>
+  <description>Package to control an OnRobot RG gripper. Based on Takuya Kiyokawa's package.</description>
+  <maintainer email="andras.makany@irob.uni-obuda.hu">Makány András</maintainer>
+  <author email="andras.makany@irob.uni-obuda.hu">Makány András</author>
+  <license>MIT</license>
+  
+  <build_depend>message_generation</build_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  
+  <depend>onrobot_rg_modbus_tcp</depend>
+
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>onrobot_rg_description</name>
+  <version>1.0.0</version>
+  <description>OnRobot RG model description package. Based on Takuya Kiyokawa's package.</description>
+  <license>MIT</license>
+  <author email="andras.makany@irob.uni-obuda.hu">Makány András</author>
+  <maintainer email="andras.makany@irob.uni-obuda.hu">Makány András</maintainer>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>urdf</exec_depend>
+
+  <export>
+      <build_type>ament_cmake</build_type>
+  </export>
+</package>

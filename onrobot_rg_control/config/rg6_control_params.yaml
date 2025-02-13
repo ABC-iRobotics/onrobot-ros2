@@ -1,0 +1,29 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+  # Publish all joint states
+  joint_state_broadcaster:
+    type: joint_state_broadcaster/JointStateBroadcaster
+    update_rate: 50  # Hz
+
+  onrobot_rg6:
+    # Position Controllers
+    joint_position_controller:
+      type: position_controllers/GripperActionController
+      pid: {p: 1.0, i: 0.5, d: 1.0}
+
+onrobot_rg6:
+  ros__parameters:
+    joint: finger_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+
+/gazebo_ros_control:   
+  pid_gains:
+    finger_joint:
+      p: 1.0
+      i: 0.5
+      d: 1.0
