@@ -8,10 +8,16 @@ import onrobot_rg_control.baseOnRobotRG
 import rclpy.exceptions
 import rclpy.parameter
 import rclpy.time
+from rclpy.action import GoalResponse, CancelResponse
+from rclpy.callback_groups import ReentrantCallbackGroup
+
 from std_srvs.srv import Trigger
 from onrobot_rg_msgs.msg import OnRobotRGInput
 from onrobot_rg_msgs.msg import OnRobotRGOutput
 from sensor_msgs.msg import JointState
+from control_msgs.action import GripperCommand
+from onrobot_rg_msgs.msg import OnRobotRGOutput
+
 import time
 import numpy as np
 
@@ -36,6 +42,7 @@ class OnRobotRGTcp(Node):
         
         self.logger = self.get_logger()
         self.time = Time()
+        self.status : OnRobotRGInput
         
         try:
             self.ip = self.declare_parameter('/onrobot/ip', value='192.168.1.1').get_parameter_value().string_value
@@ -58,16 +65,16 @@ class OnRobotRGTcp(Node):
             self.changer_addr = self.get_parameter('/onrobot/changer_addr').get_parameter_value().integer_value
 
         try:
-            self.dummy = self.declare_parameter('/onrobot/dummy', value=False).get_parameter_value().bool_value
+            self.dummy = self.declare_parameter('/onrobot/dummy', value=True).get_parameter_value().bool_value
         except:
             self.dummy = self.get_parameter('/onrobot/dummy').get_parameter_value().bool_value
             
         try:
-            self.dummy = self.declare_parameter('/onrobot/offset', value=5).get_parameter_value().integer_value
+            self.offset = self.declare_parameter('/onrobot/offset', value=50).get_parameter_value().integer_value
         except:
-            self.dummy = self.get_parameter('/onrobot/offset').get_parameter_value().integer_value
+            self.offset = self.get_parameter('/onrobot/offset').get_parameter_value().integer_value
         
-        self.gripper = onrobot_rg_control.baseOnRobotRG.onrobotbaseRG(self.gtype, self.dummy)
+        self.gripper = onrobot_rg_control.baseOnRobotRG.onrobotbaseRG(self.gtype, self.dummy, self.offset)
 
         if not self.dummy:
             # Connecting to the ip address received as an argument
@@ -84,6 +91,13 @@ class OnRobotRGTcp(Node):
 
         # The restarting service
         self.srv = self.create_service(Trigger, '/onrobot_rg/restart_power', self.restartPowerCycle)
+        
+        self.gripper_srv = rclpy.action.ActionServer(
+            self, GripperCommand, '/onrobot_controller',
+            callback_group=ReentrantCallbackGroup(),
+            goal_callback=self.goal_callback,
+            cancel_callback=self.cancel_callback,
+            execute_callback=self.execute_callback)
         
         self.joint_names = ["finger_joint", "left_inner_knuckle_joint", "left_inner_finger_joint", 
                             "right_outer_knuckle_joint", "right_inner_knuckle_joint", "right_inner_finger_joint"]
@@ -119,19 +133,127 @@ class OnRobotRGTcp(Node):
     def widthToJointValue(self, width):
         return np.arccos(((width/2) - self.dy - self.L1 * np.cos(self.theta1)) / self.L3) - self.theta3
     
-    def mainLoop(self):
-        """ Loops the sending status and command, and receiving message. """ 
-            # Getting and publish the Gripper status
-        status = self.gripper.getStatus()
-        self.pub.publish(status)
+    def jointValueToWidth(self, joint_angle : float):
+        return (np.cos(joint_angle + self.theta3) * self.L3 + self.dy + self.L1 * np.cos(self.theta1)) * 2
+    
+    
+    def goal_callback(self, goal_request):
+        self.get_logger().info('Received goal request')
+        return GoalResponse.ACCEPT
+    
+    def cancel_callback(self, goal_handle):
+        self.get_logger().info('Received cancel request')
+        command = OnRobotRGOutput()
+        command.rctr = 8
+        self.gripper.refreshCommand(command)
+        self.gripper.sendCommand()
+        self.prev_msg = self.gripper.message
+        return CancelResponse.ACCEPT
+    
+    def execute_callback(self, goal_handle):
+        self.get_logger().info('Executing goal')
+        goal = goal_handle.request.command
+        feedback = GripperCommand.Feedback()
+        result = GripperCommand.Result()
         
+        command = OnRobotRGOutput()
+        max_force = 0
+        max_width = 0
+        if self.gtype == 'rg2':
+            max_force = 400
+            max_width = 1100
+        elif self.gtype == 'rg6':
+            max_force = 1200
+            max_width = 1600
+        else:
+            self.logger.fatal(self.get_name() + ": Select the gripper type from rg2 or rg6.")
+            rclpy.shutdown()
+        
+        self.logger.info(str(int(self.jointValueToWidth(goal.position)*10000) - 2*self.offset))
+            
+        
+        if 0 <= int(self.jointValueToWidth(goal.position)*10000) - 2*self.offset <= max_width:
+            command.rgwd = int(self.jointValueToWidth(goal.position)*10000)
+        elif self.widthToJointValue(0) > goal.position:
+            command.rgwd = 0
+        elif goal.position > self.widthToJointValue(max_width):
+            command.rgwd = max_width
+            
+        command.rgfr = int(max_force/2)
+        
+        command.rctr = 16
+        
+        # if 0 <= goal.max_effort*10 <= max_force:
+        #     command.rgfr = int(goal.max_effort*10)
+        # elif 0 > goal.max_effort:
+        #     command.rgfr = 0
+        # elif 0 > goal.max_effort*10:
+        #     command.rgfr = max_force
+        
+        self.gripper.refreshCommand(command)
+        self.gripper.sendCommand()
+        self.prev_msg = self.gripper.message
+        
+        self.logger.info(str(self.gripper.message))
+        
+        while rclpy.ok():
+            
+            if goal_handle.is_cancel_requested:
+                # goal_handle.canceled()
+                self.get_logger().error('Goal Canceled')
+                return
+
+            self.status = self.gripper.getStatus()
+            self.pub.publish(self.status)
+            self.publishJoints()
+            
+            if self.status is None:
+                self.get_logger().warn("No gripper feedback yet")
+                pass
+            else:
+                feedback.position = self.widthToJointValue(self.status.ggwd/10000)
+                feedback.stalled = False
+                self.logger.info(str(goal.position) + " " +str(feedback.position))
+                # Position tolerance achieved or object grasped
+                if (np.abs(goal.position - self.widthToJointValue(self.status.ggwd/10000)) < 0.01):
+                    feedback.reached_goal = True
+                    self.get_logger().debug('Goal achieved: %r'% feedback.reached_goal)
+
+                goal_handle.publish_feedback(feedback)
+
+                if feedback.reached_goal:
+                    self.get_logger().debug('Reached goal, exiting loop')
+                    break
+    
+                time.sleep(0.01)
+        
+        result.position = self.widthToJointValue(self.status.ggwd/10000)
+        result.reached_goal = feedback.reached_goal
+        result.stalled = feedback.stalled
+        if result.reached_goal:
+            self.get_logger().debug('Setting action to succeeded')
+            goal_handle.succeed()
+        else:
+            self.get_logger().debug('Setting action to abort')
+            goal_handle.abort()
+        return result
+    
+    def publishJoints(self):
         msg = JointState()
         msg.header.stamp = self.time.to_msg()
         msg.name = self.joint_names
-        if status.gwdf < 1600:
-                j_value = self.widthToJointValue(status.gwdf / 10000)
-                msg.position = [j_value * ratio for ratio in self.mimic_ratios]
-                self.joint_states_pub.publish(msg)
+        if self.status.ggwd <= 1600:
+            j_value = self.widthToJointValue((self.status.ggwd) / 10000)
+            msg.position = [j_value * ratio for ratio in self.mimic_ratios]
+            self.joint_states_pub.publish(msg)
+    
+    def mainLoop(self):
+        """ Loops the sending status and command, and receiving message. """ 
+            # Getting and publish the Gripper status
+        self.status = self.gripper.getStatus()
+        self.pub.publish(self.status)
+        
+        self.publishJoints()
 
         #time.sleep(0.05)
         # Sending the most recent command

@@ -77,7 +77,7 @@ def generate_launch_description():
             dummy_arg,
             offset_arg,
             server_node,
-            status_node,
+            #status_node,
             tcp_node,
         ]
     )

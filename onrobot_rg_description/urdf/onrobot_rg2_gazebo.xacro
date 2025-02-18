@@ -2,9 +2,9 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
   <xacro:macro name="onrobot_rg2_gazebo" params="prefix">
     <gazebo>
-      <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+      <plugin name="gazebo_ros2_control" filename="libgazebo_ros2_control.so">
         <robotNamespace>/onrobot_rg2</robotNamespace>
-        <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+        <robotSimType>gazebo_ros2_control/DefaultRobotHWSim</robotSimType>
       </plugin> 
     </gazebo>
 

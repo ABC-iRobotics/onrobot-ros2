@@ -27,17 +27,17 @@ def generate_launch_description():
     )
     offset_arg = DeclareLaunchArgument(
         'offset',
-        default_value='5'
+        default_value='50'
     )
     
-    status_node = Node(
-        package='onrobot_rg_control',
-        executable='OnRobotRGStatusListener',
-        name='OnRobotRGStatusListener',
-        output='screen',
-        arguments=[],
-        parameters=[],
-    )
+    # status_node = Node(
+    #     package='onrobot_rg_control',
+    #     executable='OnRobotRGStatusListener',
+    #     name='OnRobotRGStatusListener',
+    #     output='screen',
+    #     arguments=[],
+    #     parameters=[],
+    # )
     
     tcp_node = Node(
         package='onrobot_rg_control',
@@ -64,7 +64,7 @@ def generate_launch_description():
             changer_addr_arg,
             dummy_arg,
             offset_arg,
-            status_node,
+            #status_node,
             tcp_node,
         ]
     )

@@ -35,24 +35,25 @@ class onrobotbaseRG(Node):
         self.dummy = dummy
         self.offset = offset
         
+        self.max_force = 0
+        self.max_width = 0
+        # Verifying that each variable is in its correct range
+        if self.gtype == 'rg2':
+            self.max_force = 400
+            self.max_width = 1100
+        elif self.gtype == 'rg6':
+            self.max_force = 1200
+            self.max_width = 1600
+        else:
+            self.logger.fatal(self.get_name() + ": Select the gripper type from rg2 or rg6.")
+            rclpy.shutdown()
+        
         self.message = []
         self.client = comModbusTcp.communication(dummy)
         
         if self.dummy:
-            max_force = 0
-            max_width = 0
-            # Verifying that each variable is in its correct range
-            if self.gtype == 'rg2':
-                max_force = 400
-                max_width = 1100
-            elif self.gtype == 'rg6':
-                max_force = 1200
-                max_width = 1600
-            else:
-                self.logger.fatal(self.get_name() + ": Select the gripper type from rg2 or rg6.")
-                rclpy.shutdown()
-                
-            self.fakeSystem = self.FakeGripper(max_force, max_width, self.offset, self.gtype)
+            
+            self.fakeSystem = self.FakeGripper(self.max_force, self.max_width, self.offset, self.gtype)
 
     def verifyCommand(self, command : OnRobotRGOutput) -> OnRobotRGOutput:
         """ Verifies that the value of each variable satisfy its limits.
@@ -63,24 +64,10 @@ class onrobotbaseRG(Node):
             Returns:
                 command (OnRobotRGOutput): verified command message
         """
-
-        max_force = 0
-        max_width = 0
-        # Verifying that each variable is in its correct range
-        if self.gtype == 'rg2':
-            max_force = 400
-            max_width = 1100
-        elif self.gtype == 'rg6':
-            max_force = 1200
-            max_width = 1600
-        else:
-            self.logger.fatal(self.get_name() + ": Select the gripper type from rg2 or rg6.")
-            rclpy.shutdown()
-
         command.rgfr = max(0, command.rgfr)
-        command.rgfr = min(max_force, command.rgfr)
+        command.rgfr = min(self.max_force, command.rgfr)
         command.rgwd = max(0, command.rgwd)
-        command.rgwd = min(max_width, command.rgwd)
+        command.rgwd = min(self.max_width, command.rgwd)
 
         # Verifying that the selected mode number is available
         if command.rctr not in [1, 8, 16]:
@@ -115,6 +102,7 @@ class onrobotbaseRG(Node):
         
         if self.dummy:
             self.logger.info("Calling fake movement.")
+            self.logger.info(str(self.message))
             self.fakeSystem.sendCommand(self.message)
 
     def restartPowerCycle(self):
@@ -130,20 +118,20 @@ class onrobotbaseRG(Node):
         """
 
         # Acquiring status from the Gripper
-        status = self.client.getStatus()
+        self.status = self.client.getStatus()
         
         if self.dummy:
-            status = self.fakeSystem.getStatus()
+            self.status = self.fakeSystem.getStatus()
 
         # Messaging to output
         message = OnRobotRGInput()
 
         # Assignning the values to their respective variables
-        if isinstance(status, list):
-            message.gfof = status[0]
-            message.ggwd = status[9]
-            message.gsta = status[10]
-            message.gwdf = status[17]
+        if isinstance(self.status, list):
+            message.gfof = self.status[0]
+            message.ggwd = self.status[9]
+            message.gsta = self.status[10]
+            message.gwdf = self.status[17]
             self.offset = message.gfof
             if self.dummy:
                 self.fakeSystem.offset = message.gfof
@@ -158,8 +146,8 @@ class onrobotbaseRG(Node):
             return (np.cos(joint_angle + self.theta3) * self.L3 + self.dy + self.L1 * np.cos(self.theta1)) * 2
 
         def jointWorldCurve(self, min_width : float, max_width : float) -> tuple[np.array, np.array, np.array]:
-            time = np.linspace(start=0, stop=1.1, num=1100, dtype=np.float32)
-            joint = self.widthToJointValue(min_width/10000)+(np.multiply(time, (self.widthToJointValue(max_width/10000)-self.widthToJointValue(min_width/10000))/1.1))
+            time = np.linspace(start=0, stop=1, num=max_width, dtype=np.float32)
+            joint = self.widthToJointValue(min_width/10000)+(np.multiply(time, (self.widthToJointValue(max_width/10000)-self.widthToJointValue(min_width/10000))))
             width = 10000*self.jointValueToWidth(joint)
             return (time, joint, width)
         
@@ -244,7 +232,7 @@ class onrobotbaseRG(Node):
             self.joint_angle = 0.0
             self.offset = offset
             
-            manager = Manager()
+            self.manager = Manager()
             self.width = Value('d', self.jointValueToWidth(joint_angle=self.joint_angle)*10000)
             self.status = Value('i', 0)
             self.stop = Value(c_bool, False)
