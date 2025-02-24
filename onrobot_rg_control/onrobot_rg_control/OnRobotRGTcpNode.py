@@ -169,32 +169,28 @@ class OnRobotRGTcp(Node):
             self.logger.fatal(self.get_name() + ": Select the gripper type from rg2 or rg6.")
             rclpy.shutdown()
         
-        self.logger.info(str(int(self.jointValueToWidth(goal.position)*10000) - 2*self.offset))
-            
-        
         if 0 <= int(self.jointValueToWidth(goal.position)*10000) - 2*self.offset <= max_width:
             command.rgwd = int(self.jointValueToWidth(goal.position)*10000)
         elif self.widthToJointValue(0) > goal.position:
             command.rgwd = 0
         elif goal.position > self.widthToJointValue(max_width):
             command.rgwd = max_width
-            
-        command.rgfr = int(max_force/2)
         
+        # command.rgfr = int(max_force/2)
         command.rctr = 16
         
-        # if 0 <= goal.max_effort*10 <= max_force:
-        #     command.rgfr = int(goal.max_effort*10)
-        # elif 0 > goal.max_effort:
-        #     command.rgfr = 0
-        # elif 0 > goal.max_effort*10:
-        #     command.rgfr = max_force
+        if goal.max_effort == 0.0:
+            command.rgfr = int(max_force/2)
+        elif 0.0 < goal.max_effort*10 <= max_force :
+            command.rgfr = int(goal.max_effort*10/2)
+        elif 0 > goal.max_effort:
+            command.rgfr = 0
+        elif max_force < goal.max_effort*10:
+            command.rgfr = max_force
         
         self.gripper.refreshCommand(command)
         self.gripper.sendCommand()
         self.prev_msg = self.gripper.message
-        
-        self.logger.info(str(self.gripper.message))
         
         while rclpy.ok():
             
@@ -215,7 +211,7 @@ class OnRobotRGTcp(Node):
                 feedback.stalled = False
                 self.logger.info(str(goal.position) + " " +str(feedback.position))
                 # Position tolerance achieved or object grasped
-                if (np.abs(goal.position - self.widthToJointValue(self.status.ggwd/10000)) < 0.01):
+                if (np.abs(goal.position - self.widthToJointValue(self.status.ggwd/10000)) < 0.005):
                     feedback.reached_goal = True
                     self.get_logger().debug('Goal achieved: %r'% feedback.reached_goal)
 
@@ -225,7 +221,7 @@ class OnRobotRGTcp(Node):
                     self.get_logger().debug('Reached goal, exiting loop')
                     break
     
-                time.sleep(0.01)
+                time.sleep(0.07)
         
         result.position = self.widthToJointValue(self.status.ggwd/10000)
         result.reached_goal = feedback.reached_goal

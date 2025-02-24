@@ -146,7 +146,7 @@ class onrobotbaseRG(Node):
             return (np.cos(joint_angle + self.theta3) * self.L3 + self.dy + self.L1 * np.cos(self.theta1)) * 2
 
         def jointWorldCurve(self, min_width : float, max_width : float) -> tuple[np.array, np.array, np.array]:
-            time = np.linspace(start=0, stop=1, num=max_width, dtype=np.float32)
+            time = np.linspace(start=0, stop=1, num=max_width*2, dtype=np.float32)
             joint = self.widthToJointValue(min_width/10000)+(np.multiply(time, (self.widthToJointValue(max_width/10000)-self.widthToJointValue(min_width/10000))))
             width = 10000*self.jointValueToWidth(joint)
             return (time, joint, width)
@@ -155,7 +155,7 @@ class onrobotbaseRG(Node):
             index = bisect_left(self.lookup[0,:], width)
             d = np.array([self.lookup[0,index]-width, self.lookup[0,index+1]-width])
             c = np.divide(d, d[0]+d[1])
-            return (width, c[1]*self.lookup[1, index] + c[0]*self.lookup[1, index+1])
+            return c[1]*self.lookup[1, index] + c[0]*self.lookup[1, index+1]
         
         def move(self, width, goal, control, status, stop):
             if control == 8:
@@ -168,14 +168,17 @@ class onrobotbaseRG(Node):
                 
             error_sign = np.sign(goal - width.value)
             status.value += 1
-            while (not stop.value) and (error_sign == np.sign(goal - width.value)) and (np.abs(goal - width.value) > 1):
-                A = self.interpolate(width.value)[1]
-                B = self.interpolate(width.value+0.5*error_sign*self.force*self.force_scaling*self.dt*A)[1]
-                C = self.interpolate(width.value+0.5*error_sign*self.force*self.force_scaling*self.dt*B)[1]
-                D = self.interpolate(width.value+error_sign*self.force*self.force_scaling*self.dt*C)[1]
+            while (not stop.value) and (error_sign == np.sign(goal - width.value)) and (np.abs(goal - width.value) > 0.1):
+                A = self.interpolate(width.value)
+                B = self.interpolate(width.value+0.5*error_sign*self.force*self.force_scaling*self.dt*A)
+                C = self.interpolate(width.value+0.5*error_sign*self.force*self.force_scaling*self.dt*B)
+                D = self.interpolate(width.value+error_sign*self.force*self.force_scaling*self.dt*C)
                 dw = error_sign*self.force*self.force_scaling*self.dt*(A+2*B+2*C+D)/6
                 
-                if width.value + dw < self.offset*2:
+                if np.sign(goal - width.value) != np.sign(goal - (width.value + dw)):
+                    width.value = goal
+                    error_sign *= -1
+                elif width.value + dw < self.offset*2:
                     width.value = self.offset*2
                     error_sign *= -1
                 elif width.value + dw > self.max_width:
@@ -184,7 +187,7 @@ class onrobotbaseRG(Node):
                 else:
                     width.value += dw
                 
-                time.sleep(self.dt/10)
+                time.sleep(self.dt/20)
             status.value -= 1
             
         def __init__(self, max_force, max_width, offset, gtype):
@@ -237,7 +240,7 @@ class onrobotbaseRG(Node):
             self.status = Value('i', 0)
             self.stop = Value(c_bool, False)
             
-            self.dt = 0.002
+            self.dt = 0.001
             
             self.width_lookup = self.jointWorldCurve(0, self.max_width)
             self.lookup = np.vstack([self.width_lookup[2], np.gradient(self.width_lookup[2])])
