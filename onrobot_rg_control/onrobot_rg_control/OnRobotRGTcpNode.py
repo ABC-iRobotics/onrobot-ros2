@@ -3,7 +3,6 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
-from rclpy.parameter import ParameterType
 import onrobot_rg_control.baseOnRobotRG
 import rclpy.exceptions
 import rclpy.parameter
@@ -98,26 +97,9 @@ class OnRobotRGTcp(Node):
             goal_callback=self.goal_callback,
             cancel_callback=self.cancel_callback,
             execute_callback=self.execute_callback)
-        
-        self.joint_names = ["finger_joint", "left_inner_knuckle_joint", "left_inner_finger_joint", 
-                            "right_outer_knuckle_joint", "right_inner_knuckle_joint", "right_inner_finger_joint"]
-        self.mimic_ratios = [1, -1, 1, -1, -1, 1]
-        
-        if self.gtype == 'rg6':
-            self.L1 = 0.1394215     # Length between knuckle joint - drive joint (finger_joint) lateral intersect and upper plate middlepoint
-            self.L3 = 0.08          # Length of knuckle link, joint-to-joint
-            self.theta1 = 1.3963    # Angle between upper plate middlepoint, knuckle joint - drive joint (finger_joint) lateral intersect and middle axis
-            self.theta3 = 0.93766   # Angle of knuckle in default pose
-            self.dy = -0.0196       # Distande between the finger's inner side and the knuckle joint
-        elif self.gtype == 'rg2':
-            self.L1 = 0.108505
-            self.L3 = 0.055
-            self.theta1 = 1.41371
-            self.theta3 = 0.76794
-            self.dy = -0.0144
 
         self.prev_msg = []
-        self.loop = self.create_timer(0.05, self.mainLoop)
+        self.loop = self.create_timer(0.02, self.mainLoop)
 
     def restartPowerCycle(self, request, response):
         """ Restarts the power cycle of the gripper. """
@@ -176,7 +158,6 @@ class OnRobotRGTcp(Node):
         elif goal.position > self.widthToJointValue(max_width):
             command.rgwd = max_width
         
-        # command.rgfr = int(max_force/2)
         command.rctr = 16
         
         if goal.max_effort == 0.0:
@@ -266,5 +247,4 @@ def main():
     node = OnRobotRGTcp('OnRobotRGTcp')
     rclpy.spin(node)
     
-    node.destroy_node()
     rclpy.shutdown()

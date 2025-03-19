@@ -149,8 +149,8 @@
     <xacro:finger_joints prefix="${prefix}" fingerprefix="right" reflect="-1.0"/>
   </xacro:macro>
 
-  <xacro:macro name="onrobot_rg6" params="prefix effector_base:=world">
-    <xacro:base_link prefix="${prefix}" effector_base="${effector_base}"/>
+  <xacro:macro name="onrobot_rg6" params="prefix">
+    <xacro:base_link prefix="${prefix}"/>
     <xacro:finger_links prefix="${prefix}" fingerprefix="left"/>
     <xacro:finger_links prefix="${prefix}" fingerprefix="right"/>
     <xacro:finger_joint prefix="${prefix}"/>

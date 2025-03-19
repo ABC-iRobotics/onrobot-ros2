@@ -153,8 +153,8 @@ class onrobotbaseRG(Node):
         
         def interpolate(self, width):
             index = bisect_left(self.lookup[0,:], width)
-            d = np.array([self.lookup[0,index]-width, self.lookup[0,index+1]-width])
-            c = np.divide(d, d[0]+d[1])
+            d = np.array([self.lookup[0,index], self.lookup[0,index+1]])
+            c = np.divide(d, d[1]-d[0])
             return c[1]*self.lookup[1, index] + c[0]*self.lookup[1, index+1]
         
         def move(self, width, goal, control, status, stop):
@@ -236,7 +236,7 @@ class onrobotbaseRG(Node):
             self.offset = offset
             
             self.manager = Manager()
-            self.width = Value('d', self.jointValueToWidth(joint_angle=self.joint_angle)*10000)
+            self.width = Value('d', int(self.jointValueToWidth(joint_angle=self.joint_angle)*10000))
             self.status = Value('i', 0)
             self.stop = Value(c_bool, False)
             
@@ -253,11 +253,8 @@ class onrobotbaseRG(Node):
             return list(chain([int(self.offset)], [0] * 8, [int(self.width.value), int(self.status.value)], [0] * 6, [int(self.width.value - 2*self.offset)]))
         
         def sendCommand(self, message):
-            self.force = message[0]
-            target_width = message[1]
-            control = message[2]
             
-            
+            (self.force, target_width, control) = message
             Process(target=self.move, args=(self.width, target_width, control, self.status, self.stop)).start()
             
             

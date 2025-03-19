@@ -24,6 +24,7 @@
         <geometry>
           <mesh filename="package://onrobot_rg_description/meshes/rg2/collision/outer_knuckle.stl" />
         </geometry>
+        <sdf resolution="512"/>
       </collision>
     </link>
 
@@ -56,6 +57,7 @@
         <geometry>
           <mesh filename="package://onrobot_rg_description/meshes/rg2/collision/inner_knuckle.stl" />
         </geometry>
+        <sdf resolution="512"/>
       </collision>
     </link>
 
@@ -88,6 +90,7 @@
         <geometry>
           <mesh filename="package://onrobot_rg_description/meshes/rg2/collision/inner_finger.stl" />
         </geometry>
+        <sdf resolution="512"/>
       </collision>
     </link>
 

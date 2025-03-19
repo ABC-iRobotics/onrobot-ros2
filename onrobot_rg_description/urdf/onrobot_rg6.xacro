@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
-  <xacro:macro name="base_link" params="prefix effector_base:=world">
+  <xacro:macro name="base_link" params="prefix">
     <link name="${prefix}base_link">
       <inertial>
         <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
@@ -24,16 +24,6 @@
       </collision>
     </link>
 
-    <xacro:property name="generate_world" value="${effector_base == 'world'}"/>
-    <xacro:if value="${generate_world}">
-      <link name="world"/>
-    </xacro:if>
-
-    <joint name="joint0" type="fixed">
-        <parent link="${effector_base}"/>
-        <child link="${prefix}base_link"/>
-        <origin xyz= "0. 0. 0." rpy="0. 0. 1.57" />
-    </joint>
     <gazebo reference="${prefix}base_link">
       <mu1>1.0</mu1>
       <mu2>1.0</mu2>
