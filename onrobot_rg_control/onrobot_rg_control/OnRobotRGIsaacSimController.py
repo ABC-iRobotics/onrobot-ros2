@@ -10,6 +10,7 @@ from rclpy.time import Time
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.action import GoalResponse, CancelResponse
 
 # ======================================================== #
 # ====================  Message types ==================== #
@@ -17,7 +18,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 
 from control_msgs.action import GripperCommand
 from sensor_msgs.msg import JointState
-from rclpy.action import GoalResponse, CancelResponse
+from onrobot_rg_msgs.srv import GripperPose
 
 # ======================================================== #
 # ==================== General imports =================== #
@@ -54,11 +55,15 @@ class FakeGripper(Node):
                 goal_callback=self.goal_callback,
                 cancel_callback=self.cancel_callback,
                 execute_callback=self.execute_callback)
+                
+            # * GripperPose service
+            self.gripper_pose = self.create_service(GripperPose, '/onrobot/pose', self.gripperPoseCallback)
             
             # * Joint commands publisher for Isaac Sim control
             self.joint_states_pub = self.create_publisher(JointState, 'joint_command', 10)
             # * Joint states subscriber for Isaac Sim feedback
             self.joint_states_sub = self.create_subscription(JointState, 'joint_states', self.getJoints, 10)
+            
             
 
             # * Setting up gripper parameters
@@ -71,6 +76,8 @@ class FakeGripper(Node):
                 self.theta1 = 1.3963
                 self.theta3 = 0.93766
                 self.dy = -0.0196
+                self.dz1 = 0.121522
+                self.dz2 = 0.0539
 
                 self.max_force = 1200
                 self.max_width = 1600
@@ -129,7 +136,20 @@ class FakeGripper(Node):
         def jointValueToWidth(self, joint_angle : float) -> float:
             return (np.cos(joint_angle + self.theta3) * self.L3 + self.dy + self.L1 * np.cos(self.theta1)) * 2
 
-
+        """
+            Convert gripper height to joint value
+            @param height Gripper height in m
+        """
+        def heightToJointValue(self, height : float) -> float:
+            return np.arcsin((height - (self.dz1 + self.dz2))/self.L3) - self.theta3
+        
+        """
+            Convert joint value to gripper height
+            @param joint_angle Joint value in radians
+        """
+        def jointValueToHeight(self, joint_angle : float) -> float:
+            return self.L3 * np.sin(joint_angle + self.theta3) + (self.dz1 + self.dz2)
+            
         """
             GripperCommand goal callback
         """
@@ -198,6 +218,8 @@ class FakeGripper(Node):
                     if feedback.reached_goal:
                         self.get_logger().debug('Reached goal, exiting loop')
                         break
+                    
+                    self.publishJoints()                            # Sometimes Isaac Sim don't recive first publish
         
                 sleep(1/self.publish_freq)                          # Wait until next feedback - default: 2 ms
 
@@ -212,7 +234,35 @@ class FakeGripper(Node):
                 self.get_logger().debug('Setting action to abort')
                 goal_handle.abort()
             return result
-            
+        
+        """
+            Requests one parameter from: width, height, joint angle. If the first 2 is zero, then joint_angle = 0 is assumed. Returns the full pose of the gripper TCP.
+        """
+        def gripperPoseCallback(self, request : GripperPose.Request, response : GripperPose.Response):
+            if request.known.x < 0 or request.known.y < 0:
+                self.get_logger().error('Negative value were given!')
+                return response
+            if abs(request.known.theta) > 0.628319:
+                self.get_logger().error('Joint angle out of bound')
+                return response
+            if (not request.known.x == 0) and ((not request.known.y == 0) or (not request.known.theta == 0)) or ((not request.known.y == 0) and (not request.known.theta == 0)):
+                self.get_logger().error('More than one parameter given! Please define either width (x), height (y), or joint angle (theta).')
+                return response
+            if not request.known.x == 0:
+                response.pose.x = request.known.x
+                response.pose.theta = self.widthToJointValue(request.known.x)
+                response.pose.y = self.jointValueToHeight(response.pose.theta)
+                return response
+            if not request.known.y == 0:
+                response.pose.y = request.known.y
+                response.pose.theta = self.heightToJointValue(request.known.y)
+                response.pose.x = self.jointValueToWidth(response.pose.theta)
+                return response
+            response.pose.theta = request.known.theta
+            response.pose.x = self.jointValueToWidth(response.pose.theta)
+            response.pose.y = self.jointValueToHeight(response.pose.theta)
+            return response
+        
         """
             Publish joint states to "joint_command" topic
             This will update Isaac Sim's target position for the RG gripper
