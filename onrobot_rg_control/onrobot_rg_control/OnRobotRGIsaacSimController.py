@@ -46,12 +46,15 @@ class FakeGripper(Node):
 
             self.logger = self.get_logger()
             self.time = Time()
+            self.jointState : JointState = JointState()
+            
+            self.reentrant_group = ReentrantCallbackGroup()
 
 
             # * GripperCommand interface
             self.gripper_srv = rclpy.action.ActionServer(
                 self, GripperCommand, '/onrobot_controller',
-                callback_group=ReentrantCallbackGroup(),
+                callback_group=self.reentrant_group,
                 goal_callback=self.goal_callback,
                 cancel_callback=self.cancel_callback,
                 execute_callback=self.execute_callback)
@@ -60,9 +63,9 @@ class FakeGripper(Node):
             self.gripper_pose = self.create_service(GripperPose, '/onrobot/pose', self.gripperPoseCallback)
             
             # * Joint commands publisher for Isaac Sim control
-            self.joint_states_pub = self.create_publisher(JointState, 'joint_command', 10)
+            self.joint_states_pub = self.create_publisher(JointState, 'joint_command', 10, callback_group=self.reentrant_group)
             # * Joint states subscriber for Isaac Sim feedback
-            self.joint_states_sub = self.create_subscription(JointState, 'joint_states', self.getJoints, 10)
+            self.joint_states_sub = self.create_subscription(JointState, 'joint_states', self.getJoints, 10, callback_group=self.reentrant_group)
             
             
 
@@ -113,7 +116,7 @@ class FakeGripper(Node):
             
             # Constants used to define behavior
             self.publish_freq = 50 # Hz
-            self.goalTolerance = 0.01 # Radians
+            self.goalTolerance = 0.02 # Radians
             self.joint_names = ["finger_joint", "left_inner_knuckle_joint", "left_inner_finger_joint", "right_outer_knuckle_joint", "right_inner_knuckle_joint", "right_inner_finger_joint"]
             self.mimic_ratios = [1, -1, 1, -1, -1, 1]
 
@@ -181,6 +184,8 @@ class FakeGripper(Node):
             # Publish desired joint state
             self.joint_angle_desired = goal.position
             self.publishJoints()
+            start_state = self.joint_angle
+            self.stopped = False
             
             while rclpy.ok():
                 
@@ -210,7 +215,7 @@ class FakeGripper(Node):
                     feedback.stalled = False
                    
                     # Check if position tolerance achieved
-                    if (np.abs(goal.position - feedback.position) < self.goalTolerance ):
+                    if self.stopped and not self.joint_angle == start_state:
                         feedback.reached_goal = True
                         self.get_logger().debug('Goal achieved: %r'% feedback.reached_goal)
                     goal_handle.publish_feedback(feedback)
@@ -220,7 +225,8 @@ class FakeGripper(Node):
                         break
                     
                     self.publishJoints()                            # Sometimes Isaac Sim don't recive first publish
-        
+                
+                
                 sleep(1/self.publish_freq)                          # Wait until next feedback - default: 2 ms
 
             # Result message
@@ -282,9 +288,15 @@ class FakeGripper(Node):
             This is the main feedback from Isaac Sim
         """
         def getJoints(self, message : JointState) -> None:
+            self.lastJointState = self.jointState
+            self.jointState = message
             for i in range(len(message.name)):
                 if message.name[i] == 'finger_joint':
                     self.joint_angle = message.position[i]
+            self.stopped = True if all(abs(pos - last_pos) < 1e-3 and 
+                                    abs(vel - last_vel) < 1e-3 for pos, last_pos, vel, last_vel, joint in 
+                                    zip(self.jointState.position, self.lastJointState.position, self.jointState.velocity, self.lastJointState.velocity, self.jointState.name) 
+                                    if joint == 'finger_joint') else False
 
 def main():
     #Init ROS2
