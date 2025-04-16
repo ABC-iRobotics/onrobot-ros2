@@ -293,8 +293,8 @@ class FakeGripper(Node):
             for i in range(len(message.name)):
                 if message.name[i] == 'finger_joint':
                     self.joint_angle = message.position[i]
-            self.stopped = True if all(abs(pos - last_pos) < 1e-3 and 
-                                    abs(vel - last_vel) < 1e-3 for pos, last_pos, vel, last_vel, joint in 
+            self.stopped = True if all(abs(pos - last_pos) < 1e-2 and 
+                                    abs(vel - last_vel) < 1e-2 for pos, last_pos, vel, last_vel, joint in 
                                     zip(self.jointState.position, self.lastJointState.position, self.jointState.velocity, self.lastJointState.velocity, self.jointState.name) 
                                     if joint == 'finger_joint') else False
 
