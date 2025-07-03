@@ -6,12 +6,13 @@ package_name = 'onrobot_rg_control'
 
 setup(
     name=package_name,
-    version='1.0.0',
-    packages=find_packages(exclude=['test']),
+    version='2.0.0',
+    packages=find_packages(include=['onrobot_rg_control', 'onrobot_rg_control.*'], exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        #(os.path.join('share', package_name, 'onrobot_rg_communication'), glob(os.path.join(package_name, 'onrobot_rg_communication', '*.py'))),
         (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*')))
     ],
     install_requires=['setuptools', 'pymodbustcp', 'simple-pid'],
@@ -24,10 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
                 'OnRobotRGSimpleControllerServer = onrobot_rg_control.OnRobotRGSimpleControllerServer:main',
-                'OnRobotRGSimpleController = onrobot_rg_control.OnRobotRGSimpleController:main',
-                'OnRobotRGStatusListener = onrobot_rg_control.OnRobotRGStatusListener:main',
-                'OnRobotRGTcp = onrobot_rg_control.OnRobotRGTcpNode:main',
-                'OnRobotRGIsaacSimController = onrobot_rg_control.OnRobotRGIsaacSimController:main'
+                'OnRobotRGSimpleController = onrobot_rg_control.OnRobotRGSimpleController:main'
         ],
     },
 )

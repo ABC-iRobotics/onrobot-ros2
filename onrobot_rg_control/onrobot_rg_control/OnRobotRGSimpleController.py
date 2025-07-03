@@ -2,11 +2,10 @@
 
 import rclpy
 from onrobot_rg_msgs.msg import OnRobotRGOutput
+from onrobot_rg_msgs.srv import SetCommand
 from rclpy.node import Node
 import rclpy.logging
-import rclpy.parameter
-import rclpy.publisher
-import rclpy.context
+import time
 
 
 class OnRobotRGController(Node):
@@ -20,6 +19,7 @@ class OnRobotRGController(Node):
             self.gtype = self.get_parameter('/onrobot/gripper').get_parameter_value().string_value
         
         self.publisher = self.create_publisher(OnRobotRGOutput, 'OnRobotRGOutput', 1)
+        self.client = self.create_client(SetCommand, '/onrobot/sendCommand')
         self.command = OnRobotRGOutput()
         self.command.rgfr = 400
         self.command.rgwd = 1000
@@ -28,8 +28,13 @@ class OnRobotRGController(Node):
 
     def sendCommand(self):
         while True:
-            self.genCommand(self.askForCommand())
-            self.publisher.publish(self.command)
+            #self.genCommand(self.askForCommand())
+            #self.publisher.publish(self.command)
+            command = SetCommand.Request()
+            command.command = self.askForCommand()
+            self.future = self.client.call_async(command)
+            while not self.future.done:
+                time.sleep(0.1)
 
     def genCommand(self, char):
         """ Updates the command according to the input character.
@@ -74,7 +79,6 @@ class OnRobotRGController(Node):
         else:
             # If the command entered is a int, assign this value to rgwd
             try:
-                self.command.rgfr = max(self.command.rgfr, 250)
                 self.command.rgwd = min(max_width, int(char))
                 self.command.rctr = 16
             except ValueError:

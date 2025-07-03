@@ -7,7 +7,7 @@ OnRobot Grippers using the Modbus/TCP protocol.
 import sys
 from rclpy import logging
 import threading
-from pyModbusTCP.client import ModbusClient
+from pymodbus.client import ModbusTcpClient
 
 
 class communication:
@@ -28,7 +28,7 @@ class communication:
     """
 
     def __init__(self, dummy):
-        self.client : ModbusClient
+        self.client : ModbusTcpClient
         self.dummy = dummy
         self.lock = threading.Lock()
         self.logger = logging.get_logger("OnRobot Modbus")
@@ -51,14 +51,14 @@ class communication:
             return
         self.changer_addr = changer_addr
         self.logger.info("Changer address: " + str(self.changer_addr))
-        self.client = ModbusClient(
+        self.client = ModbusTcpClient(
             host=ip,
             port=port,
             timeout=1,
-            unit_id=self.changer_addr
+            #source_address=('gripper', self.changer_addr)
         )
-        self.client.open()
-        if self.client.is_open:
+        self.client.connect()
+        if self.client.connected:
             self.logger.info("Connected successfully.")
         else:
             self.logger.info("Connection failed!")
@@ -96,7 +96,7 @@ class communication:
         # Sending a command to the device (address 0 ~ 2)
         if message != []:
             with self.lock:
-                self.client.write_multiple_registers(regs_addr=0, regs_value=message)
+                self.client.write_registers(address=0, values=message, slave=self.changer_addr)
 
     def restartPowerCycle(self):
         """ Restarts the power cycle of Compute Box.
@@ -111,8 +111,7 @@ class communication:
 
         # Sending 2 to address 0x0 resets compute box (address 63) power cycle
         with self.lock:
-            self.client.write_single_register(
-                    reg_addr=0, reg_value=message)
+            self.client.write_register(address=0, values=message, slave=self.changer_addr)
 
     def getStatus(self):
         """ Sends a request to read and returns the gripper status. """
@@ -129,6 +128,6 @@ class communication:
         # Getting status from the device (address 258 ~ 275)
         with self.lock:
             response = self.client.read_holding_registers(
-                reg_addr=258, reg_nb=18)
+                address=258, count=18, slave=self.changer_addr)
         # Output the result
         return response

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="onrobot-rg6">
+    <!-- Import RG6 gripper urdf file -->
+    <xacro:include filename="$(find onrobot_rg_description)/urdf/onrobot_rg6_model.xacro" />
+
+    <joint name="joint_tcp_fixed" type="fixed">
+        <parent link="world"/>
+        <child link="base_link"/>
+        <origin rpy="0 0 0" xyz="0 0.0 0.0"/>
+    </joint>
+</robot>

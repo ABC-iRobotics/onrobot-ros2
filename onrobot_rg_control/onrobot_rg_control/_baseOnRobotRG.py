@@ -5,7 +5,7 @@ import numpy as np
 from itertools import chain
 from rclpy.node import Node
 from onrobot_rg_msgs.msg import OnRobotRGInput, OnRobotRGOutput
-from onrobot_rg_modbus_tcp import comModbusTcp
+from onrobot_rg_control.onrobot_rg_communication import comModbusTcp
 import rclpy.logging
 from bisect import bisect_left
 from multiprocessing import Process, Value, Manager
@@ -49,12 +49,8 @@ class onrobotbaseRG(Node):
             rclpy.shutdown()
         
         self.message = []
-        self.client = comModbusTcp.communication(dummy)
+        self.client = comModbusTcp.communication()
         
-        if self.dummy:
-            
-            self.fakeSystem = self.FakeGripper(self.max_force, self.max_width, self.offset, self.gtype)
-
     def verifyCommand(self, command : OnRobotRGOutput) -> OnRobotRGOutput:
         """ Verifies that the value of each variable satisfy its limits.
 

@@ -117,13 +117,12 @@ class FakeGripper(Node):
             # Constants used to define behavior
             self.publish_freq = 50 # Hz
             self.goalTolerance = 0.02 # Radians
-            self.joint_names = ["finger_joint", "left_inner_knuckle_joint", "left_inner_finger_joint", "right_outer_knuckle_joint", "right_inner_knuckle_joint", "right_inner_finger_joint"]
-            self.mimic_ratios = [1, -1, 1, -1, -1, 1]
+            self.joint_names = ["finger_joint", "left_inner_inner_finger_joint", "left_inner_finger_joint", "right_outer_knuckle_joint", "right_inner_inner_finger_joint", "right_inner_finger_joint"]
+            self.mimic_ratios = [1, -1, -1, 1, -1, -1]
 
             # Init control variables
             self.joint_angle = 0
-            self.stop = False
-        
+            self.stop = False   
 
         """
             Convert gripper width to joint value
@@ -280,7 +279,6 @@ class FakeGripper(Node):
 
             j_value = self.joint_angle_desired
             msg.position = [j_value * ratio for ratio in self.mimic_ratios]
-
             self.joint_states_pub.publish(msg)
 
         """
