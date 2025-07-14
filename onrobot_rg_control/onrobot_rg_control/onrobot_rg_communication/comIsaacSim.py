@@ -10,38 +10,51 @@ class communication(OnRobotCommunicationBase):
     def __init__(self, base : OnRobotRGNode):
         self.base = base
         self.busy = False
-        self.state_sub = self.base.create_subscription(JointState, self.base.joint_states_sub, self.jointStateCallback, 3, callback_group=self.base.reentrant)
+        self.freqency = 20.0
+        
+        # ~~~~~~~~~~~~~~~~~ States ~~~~~~~~~~~~~~~~ #
         self.joint_angle = 0.0
         self.last_joint_angle = 0.0
         self.joint_angle_desired = 0.0
         self.last_joint_angle_desired = 0.0
+        
         self.jointState = JointState()
         self.lastJointState = JointState()
-        self.rate = self.base.create_rate(20)
-        self.counter = 0
-        self.setJoint = self.base.create_client(SetJoint, '/IsaacSim/SetJoint', callback_group=self.base.reentrant)
+
+        # ~~~~~~~~~~ ROS 2 communications ~~~~~~~~~ #
         self.base.jointPub.destroy()
+        self.joint_state_sub = self.base.create_subscription(JointState, self.base.joint_states_sub, self.jointStateCallback, 3, callback_group=self.base.reentrant)
+        self.joint_state_pub = self.base.create_publisher(JointState, self.base.isaac_joint_states_pub, 3, callback_group=self.base.reentrant)
         
-    def sendCommand(self, force : float, joint_angle : float, command_type):
-        if command_type == 8:
-            self.joint_angle_desired = self.joint_angle
-        else:
-            self.joint_angle_desired = joint_angle
-            
+        # self.setJoint = self.base.create_client(SetJoint, '/IsaacSim/SetJoint', callback_group=self.base.reentrant)
+        
+        self.rate = self.base.create_rate(self.freqency)
+        self.base.create_timer(1.0/self.freqency, self.publishDesiredState)
+        
+    def publishDesiredState(self):
         msg = JointState()
         msg.header.stamp = self.base.time.to_msg()
         msg.name = self.base.joint_names
         msg.position = [self.joint_angle_desired * ratio for ratio in self.base.mimic_ratios]
-        msg.effort = [(float)(force) for num in self.base.mimic_ratios]
+        self.joint_state_pub.publish(msg)
         
-        srv = SetJoint.Request()
-        srv.joint = "finger_joint"
-        srv.value = joint_angle
-        self.setJoint.call_async(srv)
+        # TODO: Controll method with Isaac Sim setJoint service
+        # srv = SetJoint.Request()
+        # srv.joint = "finger_joint"
+        # srv.value = joint_angle
+        # self.base.get_logger().info('Calling set joint.')
+        # self.setJoint.call(srv)
+        # self.base.get_logger().info('Called set joint successfully.')
         
-        # self.base.joint_state_pub.publish(msg)
-        
-        
+    
+    def sendCommand(self, force : float, joint_angle : float, command_type):
+        if command_type == 8:
+            self.joint_angle_desired = self.joint_angle
+        else:
+            self.last_joint_angle_desired = self.joint_angle_desired    # Remember last desired joint value for status report
+            self.joint_angle_desired = joint_angle
+            
+        self.force = force  
         
     def getStatus(self):
         return {
@@ -71,15 +84,7 @@ class communication(OnRobotCommunicationBase):
                 self.lastJointState = self.jointState
                 self.jointState = message
                 self.busy = False if (
-                                (abs(self.joint_angle - self.last_joint_angle) < 1e-4 or 
-                                abs(self.joint_angle_desired - self.joint_angle) < 1e-1) and 
-                                abs(self.jointState.velocity[i]) < 5e-3
+                                (abs(self.joint_angle - self.last_joint_angle) < 5e-3 or 
+                                abs(self.joint_angle_desired - self.joint_angle) < 1e-1) or 
+                                abs(self.jointState.velocity[i]) < 1e-2
                                 ) else True
-        if self.counter % 20 == 1:
-            self.base.get_logger().info('Gripper joints: ' + str([pos for pos in self.jointState.position if 'finger_joint' in self.jointState.name]) + '\nBusy: ' + str(self.busy))
-            self.base.get_logger().info('Conditions:')
-            self.base.get_logger().info('Position difference: ' + str(self.joint_angle - self.last_joint_angle))
-            self.base.get_logger().info('Distance from goal: ' + str(self.joint_angle_desired - self.joint_angle))
-            self.base.get_logger().info('Velocity: ' + str(self.jointState.velocity[0]))
-            self.counter %= 20
-        self.counter += 1
