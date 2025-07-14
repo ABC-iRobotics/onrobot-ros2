@@ -1,25 +1,33 @@
 #!/usr/bin/env python3
 
-import time
+# ======================================================== #
+# ==================== Python Imports ==================== #
+# ======================================================== #
 import numpy as np
 
+
+# ======================================================== #
+# ===================== ROS 2 Imports ==================== #
+# ======================================================== #
 import rclpy
 import rclpy.logging
 from rclpy.timer import Timer
 from rclpy.node import Node
 from rclpy.time import Time
-from rclpy.executors import MultiThreadedExecutor
+from rclpy.executors import MultiThreadedExecutor, ExternalShutdownException
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.action import GoalResponse, CancelResponse
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
-from onrobot_rg_msgs.msg import OnRobotRGOutput
-from onrobot_rg_msgs.srv import SetCommand
-
+# ======================================================== #
+# ==================== ROS 2 Messages ==================== #
+# ======================================================== #
 from std_srvs.srv import Trigger
 from control_msgs.action import GripperCommand
 from sensor_msgs.msg import JointState
 from onrobot_rg_msgs.srv import GripperPose
+
+from onrobot_rg_msgs.msg import OnRobotRGOutput
+from onrobot_rg_msgs.srv import SetCommand
 
 class OnRobotRGNode(Node):
     """ OnRobotRGNode handles setting commands.
@@ -34,30 +42,19 @@ class OnRobotRGNode(Node):
             genCommand:
                 Updates the command according to the input character.
     """
-
-    jointPub : Timer
     
     def __init__(self, nodeName : str):
         super().__init__(nodeName)
         
-        self.initParams()
-        
         self.reentrant = ReentrantCallbackGroup()
+        
+        self.initParams()
         
         self.time = Time()
         self.command = OnRobotRGOutput()
         self.command.rgfr = self.max_force
         
         self.logger = rclpy.logging.get_logger("OnRobotRGServer")
-        
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.RELIABLE,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            history=HistoryPolicy.KEEP_ALL,
-            depth=1
-        )
-        
-        self.joint_state_pub = self.create_publisher(JointState, self.joint_states_pub, callback_group=self.reentrant, qos_profile=qos_profile)
         
         # * Command from keyboard service
         self.set_command_srv = self.create_service(SetCommand, '/onrobot/sendCommand', self.sendCommandCallback, callback_group=self.reentrant)
@@ -76,9 +73,10 @@ class OnRobotRGNode(Node):
             cancel_callback=self.cancel_callback,
             execute_callback=self.execute_callback)
         
-        self.jointPub = self.create_timer(1.0/self.publish_freq, self.getStatus)
-        
+        self.jointPub : Timer = self.create_timer(1.0/self.publish_freq, self.getStatus)
+
         from onrobot_rg_control.onrobot_rg_communication.comBase import OnRobotCommunicationBase
+        
         self.gripper: OnRobotCommunicationBase
         
         match self.control:
@@ -96,6 +94,7 @@ class OnRobotRGNode(Node):
                 self.gripper.disconnectFromDevice()
 
     def initParams(self):
+        # * Common parameters
         try:
             self.gtype = self.declare_parameter('/onrobot/gripper', value='rg6').get_parameter_value().string_value
         except:
@@ -176,6 +175,8 @@ class OnRobotRGNode(Node):
                             ]
         self.mimic_ratios = [1, -1, 1, -1, -1, 1]
         
+        self.joint_state_pub = self.create_publisher(JointState, self.joint_states_pub, 3, callback_group=self.reentrant)
+        
     def initModbusTCP(self):
         try:
             self.ip = self.declare_parameter('/onrobot/ip', value='192.168.1.1').get_parameter_value().string_value
@@ -202,9 +203,14 @@ class OnRobotRGNode(Node):
         except:
             self.joint_states_sub = self.get_parameter('/onrobot/joint_states_sub_name').get_parameter_value().string_value
         
+        try:
+            self.isaac_joint_states_pub = self.declare_parameter('/onrobot/isaac_joint_states_pub_name', value='/isaac_joint_commands').get_parameter_value().string_value
+        except:
+            self.isaac_joint_states_pub = self.get_parameter('/onrobot/isaac_joint_states_pub_name').get_parameter_value().string_value
+        
         from onrobot_rg_control.onrobot_rg_communication.comIsaacSim import communication
         self.gripper = communication(self)
-    
+        
     def restartPowerCycle(self, req: Trigger.Request, res: Trigger.Response):
         self.gripper.restartPowerCycle()
         res.success = True
@@ -218,7 +224,7 @@ class OnRobotRGNode(Node):
         msg.name = self.joint_names
         joint_angle = self.status['joint_angle']
         msg.position = [joint_angle * ratio for ratio in self.mimic_ratios]
-        msg.effort = ([((float)(self.command.rgfr))/10 for num in self.mimic_ratios]) if self.status['busy'] else ([0.0 for num in self.mimic_ratios])
+        msg.effort = ([((float)(self.command.rgfr))/10 for _ in self.mimic_ratios]) if self.status['busy'] else ([0.0 for _ in self.mimic_ratios])
         self.joint_state_pub.publish(msg)
         
     """
@@ -413,12 +419,18 @@ class OnRobotRGNode(Node):
         
 
 def main():
+    try:
+        rclpy.init(args=None)
+        executor = MultiThreadedExecutor()
+        node = OnRobotRGNode('OnRobotRGController')
+        executor.add_node(node)
+        executor.spin()
     
-    rclpy.init(args=None)
-    executor = MultiThreadedExecutor()
-    node = OnRobotRGNode('OnRobotRGController')
-    executor.add_node(node)
-    executor.spin()
+        node.destroy_node()
+        rclpy.shutdown()
+        
+    except(KeyboardInterrupt, ExternalShutdownException):
+        pass
 
-    node.destroy_node()
-    rclpy.shutdown()
+if __name__ == '__main__':
+    main()
