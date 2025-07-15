@@ -5,7 +5,7 @@ OnRobot Grippers using the Modbus/TCP protocol.
 """
 
 from rclpy import logging
-from onrobot_rg_control.OnRobotRGSimpleControllerServer import OnRobotRGNode
+from onrobot_rg_control.OnRobotRGControllerServer import OnRobotRGNode
 import threading
 from pymodbus.client import ModbusTcpClient
 from onrobot_rg_control.onrobot_rg_communication.comBase import OnRobotCommunicationBase

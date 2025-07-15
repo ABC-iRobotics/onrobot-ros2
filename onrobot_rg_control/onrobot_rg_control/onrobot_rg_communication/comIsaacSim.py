@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from onrobot_rg_control.onrobot_rg_communication.comBase import OnRobotCommunicationBase
-from onrobot_rg_control.OnRobotRGSimpleControllerServer import OnRobotRGNode
+from onrobot_rg_control.OnRobotRGControllerServer import OnRobotRGNode
 from sensor_msgs.msg import JointState
 from isaac_sim_msgs.srv import SetJoint
 
@@ -23,7 +23,7 @@ class communication(OnRobotCommunicationBase):
 
         # ~~~~~~~~~~ ROS 2 communications ~~~~~~~~~ #
         self.base.jointPub.destroy()
-        self.joint_state_sub = self.base.create_subscription(JointState, self.base.joint_states_sub, self.jointStateCallback, 3, callback_group=self.base.reentrant)
+        self.joint_state_sub = self.base.create_subscription(JointState, self.base.isaac_joint_states_sub, self.jointStateCallback, 3, callback_group=self.base.reentrant)
         self.joint_state_pub = self.base.create_publisher(JointState, self.base.isaac_joint_states_pub, 3, callback_group=self.base.reentrant)
         
         # self.setJoint = self.base.create_client(SetJoint, '/IsaacSim/SetJoint', callback_group=self.base.reentrant)

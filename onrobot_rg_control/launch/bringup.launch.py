@@ -21,37 +21,41 @@ def generate_launch_description():
         'changer_addr',
         default_value='65'
     )
-    dummy_arg = DeclareLaunchArgument(
-        'dummy',
-        default_value='True'
+    control_arg = DeclareLaunchArgument(
+        'control',
+        default_value=TextSubstitution(text='modbus')
     )
+    
     offset_arg = DeclareLaunchArgument(
         'offset',
-        default_value='50'
+        default_value='5'
     )
     
-    # status_node = Node(
-    #     package='onrobot_rg_control',
-    #     executable='OnRobotRGStatusListener',
-    #     name='OnRobotRGStatusListener',
-    #     output='screen',
-    #     arguments=[],
-    #     parameters=[],
-    # )
+    isaac_joint_states_arg = DeclareLaunchArgument(
+        'isaac_joint_states',
+        default_value='/isaac_joint_states'
+    )
     
-    tcp_node = Node(
+    isaac_joint_commands_arg = DeclareLaunchArgument(
+        'isaac_joint_commands',
+        default_value='/isaac_joint_commands'
+    )
+    
+    server_node = Node(
         package='onrobot_rg_control',
-        executable='OnRobotRGTcpNode',
-        name='OnRobotRGTcpNode',
+        executable='OnRobotRGControllerServer',
+        name='OnRobotRGControllerServer',
         output='screen',
         arguments=[],
         parameters=[{
+            '/onrobot/control': LaunchConfiguration('control'),
             '/onrobot/ip': LaunchConfiguration('ip'),
             '/onrobot/port': LaunchConfiguration('port'),
-            '/onrobot/gripper': LaunchConfiguration('gripper'),
             '/onrobot/changer_addr': LaunchConfiguration('changer_addr'),
-            '/onrobot/dummy': LaunchConfiguration('dummy'),
+            '/onrobot/gripper': LaunchConfiguration('gripper'),
             '/onrobot/offset': LaunchConfiguration('offset'),
+            '/onrobot/isaac_joint_states': LaunchConfiguration('isaac_joint_states'),
+            '/onrobot/isaac_joint_commands': LaunchConfiguration('isaac_joint_commands'),
         }],
     )
     
@@ -62,9 +66,11 @@ def generate_launch_description():
             port_arg,
             gripper_arg,
             changer_addr_arg,
-            dummy_arg,
+            control_arg,
             offset_arg,
-            #status_node,
-            tcp_node,
+            isaac_joint_states_arg,
+            isaac_joint_commands_arg,
+            
+            server_node,
         ]
     )

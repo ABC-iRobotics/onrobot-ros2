@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from rclpy.impl.rcutils_logger import RcutilsLogger
 from rclpy.time import Time
 from rclpy.node import Node
-from onrobot_rg_control.OnRobotRGSimpleControllerServer import OnRobotRGNode
+from onrobot_rg_control.OnRobotRGControllerServer import OnRobotRGNode
 
 class OnRobotCommunicationBase(ABC):
     
