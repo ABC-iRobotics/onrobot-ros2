@@ -79,30 +79,30 @@ ROS parameter:
 
 Using launch arguments and ros-args parameter the controller server can be customized:
 
-| Name | Launch argument | ros-args | Usage | Values | Default |
-|------|-----------------|----------|-------|--------|---------|
-| Gripper | /onrobot/gripper | gripper | Sets the used gripper type. | rg2, rg6 | rg6 |
-| Control | /onrobot/control | control | Sets gripper control method. | modbus, sim (WIP), isaac | modbus |
-| Offset | /onrobot/offset | offset | Defines fingertip offset on one side | 0 - 80 | 5 |
+| Name | Argument | Usage | Values | Default |
+|------|----------|-------|--------|---------|
+| Gripper | gripper | Sets the used gripper type. | rg2, rg6 | rg6 |
+| Control | control | Sets gripper control method. | modbus, sim (WIP), isaac | modbus |
+| Offset | offset | Defines fingertip offset on one side | 0 - 80 | 5 |
 
 #### Modbus TCP/IP
 
 For Modbus TCP/IP control the available parameters:
 
-| Name | Launch argument | ros-args | Usage | Values | Default |
-|------|-----------------|----------|-------|--------|---------|
-| IP | /onrobot/ip | ip | Sets Compute Box IP. | 0.0.0.0 - 255.255.255.255 | 192.168.1.1 |
-| Port | /onrobot/port | port | Sets Compute Box Modbus port. | 0 - 65535 | 502 |
-| Changer Address | /onrobot/changer_addr | changer_addr | Defines controlled device | 63 - 67 | 65 |
+| Name | Argument | Usage | Values | Default |
+|------|----------|-------|--------|---------|
+| IP | ip | Sets Compute Box IP. | 0.0.0.0 - 255.255.255.255 | 192.168.1.1 |
+| Port | port | Sets Compute Box Modbus port. | 0 - 65535 | 502 |
+| Changer Address | changer_addr | Defines controlled device | 63 - 67 | 65 |
 
 #### Isaac Sim
 
 For Isaac Sim control the available parameters:
 
-| Name | Launch argument | ros-args | Usage | Values | Default |
-|------|-----------------|----------|-------|--------|---------|
-| Isaac joint states | /onrobot/isaac_joint_states | isaac_joint_states | Sets joint state topic | /* | /isaac_joint_states |
-| Isaac joint commands | /onrobot/isaac_joint_commands | isaac_joint_commands | Sets joint commands topic | /* | /isaac_joint_commands |
+| Name | Argument | Usage | Values | Default |
+|------|----------|-------|--------|---------|
+| Isaac joint states | isaac_joint_states | Sets joint state topic | /* | /isaac_joint_states |
+| Isaac joint commands | isaac_joint_commands | Sets joint commands topic | /* | /isaac_joint_commands |
 
 
 ### Width / Height / Joint value cross calculation
